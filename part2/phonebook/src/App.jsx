@@ -1,22 +1,43 @@
 import { useState, useEffect } from 'react'
-import axios from 'axios'
 import Display from './components/Display'
+import personService from './services/persons'
+import axios from 'axios'
 
 const objectEqualityCheck = (first, second) => {
+  /*Check equality of objects. Return values as follows
+    - 0: objects not equal
+    - 1: name same but number different
+    - 2: same object
+  Note: first is object already stored, second is new object
+  */
+  
+  let returnObject = {
+    'value': 0,
+    'id': -1
+  }
+
   const al = Object.getOwnPropertyNames(first)
   const bl = Object.getOwnPropertyNames(second)
 
   // check if length equal
-  if(al.length !== bl.length) return false
+  if(al.length !== bl.length) return returnObject
 
   // check if keys match
   const hasAllKeys = al.every(value => !!bl.find(v => v === value))
-  if(!hasAllKeys) return false
+  if(!hasAllKeys) return returnObject
+
+  // check if name same but number different
+  if(first['name'].trim() === second['name'].trim() && first['number'] !== second['number']){
+    returnObject.value = 1
+    returnObject.id = first['id']
+    return returnObject
+  }
 
   // check if value corresponding to each key is equal
-  for(const key of al) if(key !== 'id' && first[key] !== second[key]) return false
+  for(const key of al) if(key !== 'id' && first[key].trim() !== second[key].trim()) return returnObject
 
-  return true 
+  returnObject.value = 2
+  return returnObject
 }
 
 
@@ -27,10 +48,10 @@ const App = () => {
   const [filterName, setFilterName] = useState('')
 
   const initialReadHook = () => {
-    axios
-      .get('http://localhost:3001/persons')
-      .then(response => {
-        setPersons(response.data)
+    personService
+      .getAll()
+      .then(initialContacts => {
+        setPersons(initialContacts)
       })
   }
 
@@ -46,7 +67,17 @@ const App = () => {
 
   const handleFilterValue = (event) => {
     setFilterName(event.target.value)
+  }
 
+  const removeEntry = async id => {
+    // using async and await as asynchronous call was not rerendering persons on update
+    const data = await personService.getSingle(id)
+    
+      if(window.confirm(`Do you really want to delete ${data.name} from your contact list`)){
+        await personService.deleteContact(id)
+      }
+    const updatedContacts = await personService.getAll()
+    setPersons(updatedContacts)
   }
 
   const addName = (event) => {
@@ -57,16 +88,33 @@ const App = () => {
       number: newNumber,
       id: persons.length + 1
     }
-    let flag = 0
+    // let flag = 0
+    let objectCompObj = {'value':0, 'id':-1}
     persons.forEach((obj) => {
-      if(objectEqualityCheck(obj, entryObject)){
-        flag = 1
+      if(objectCompObj.value === 0)
+        objectCompObj = objectEqualityCheck(obj, entryObject)
       }
-    })
+    )
     
-    if(flag === 0)
-      setPersons(persons.concat(entryObject))
-    else{
+    if(objectCompObj.value === 0){
+      // entryObject is unique, add to database
+      personService
+        .create(entryObject)
+        .then(newObject => {
+          setPersons(persons.concat(newObject))
+        })
+    }
+    else if(objectCompObj.value === 1){
+      // new object has same name, but different number
+      if(window.confirm(`${entryObject.name} is already added to phonebook, replace the old number with new one?`)){
+        personService
+          .update(objectCompObj.id, entryObject)
+          .then(returnedPerson => {
+            setPersons(persons.map(person => person.id !== objectCompObj.id ? person : returnedPerson))
+          })
+      }
+    }
+    else if(objectCompObj.value === 2){
       alert(`${entryObject.name} is already added to phonebook`)
     }
     setNewName('')
@@ -88,7 +136,7 @@ const App = () => {
         </div>
       </form>
       <h2>Numbers</h2>
-      <Display fname={filterName} directory={persons} />
+      <Display fname={filterName} directory={persons} removeEntry={removeEntry} />
     </div>
   )
 }
