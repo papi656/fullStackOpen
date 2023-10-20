@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import Display from './components/Display'
 import personService from './services/persons'
-import axios from 'axios'
+import './index.css'
 
 const objectEqualityCheck = (first, second) => {
   /*Check equality of objects. Return values as follows
@@ -40,12 +40,22 @@ const objectEqualityCheck = (first, second) => {
   return returnObject
 }
 
+const Notification = ({message, type}) => {
+  if(message === null) 
+    return null
+  const cssClass = type === 'success' ? 'notificationSuccess' : 'notificationFailure'
+  return (
+    <div className={cssClass}>{message}</div>
+  )
+}
 
 const App = () => {
   const [persons, setPersons] = useState([]) 
   const [newName, setNewName] = useState('')
   const [newNumber, setNewNumber] = useState('')
   const [filterName, setFilterName] = useState('')
+  const [alertMessage, setAlertMessage] = useState({message: null, type:'success'})
+  // const [notificationType, setNotificationType] = useState('success')
 
   const initialReadHook = () => {
     personService
@@ -71,13 +81,42 @@ const App = () => {
 
   const removeEntry = async id => {
     // using async and await as asynchronous call was not rerendering persons on update
-    const data = await personService.getSingle(id)
-    
-      if(window.confirm(`Do you really want to delete ${data.name} from your contact list`)){
-        await personService.deleteContact(id)
-      }
+    // console.log('inside removeEntry')
+    // const data = await personService.getSingle(id)
+    let data
+    let caughtPromise = 0
+    await personService
+      .getSingle(id)
+      .then(response => {
+        // console.log(response)
+        data = response
+      })
+      .catch(error => {
+        caughtPromise = 1
+        setAlertMessage({message: `Entry already deleted`, type:'failure'})
+          setTimeout(() => {
+            setAlertMessage({message:null, type:'success'})
+          }, 5000)
+      })
+    // console.log(data)
+    if(caughtPromise === 0 && window.confirm(`Do you really want to delete ${data.name} from your contact list`)){
+      personService
+        .deleteContact(id)
+        .then(response => {
+          setAlertMessage({message: `${data.name} successfully deleted`, type:'success'})
+          setTimeout(() => {
+            setAlertMessage({message:null, type:'success'})
+          }, 5000)
+        })
+        .catch(error => {
+          setAlertMessage({message: `Entry already deleted`, type:'failure'})
+          setTimeout(() => {
+            setAlertMessage({message:null, type:'success'})
+          }, 5000)
+        })
+    }
     const updatedContacts = await personService.getAll()
-    setPersons(updatedContacts)
+    await setPersons(updatedContacts)
   }
 
   const addName = (event) => {
@@ -94,7 +133,7 @@ const App = () => {
       if(objectCompObj.value === 0)
         objectCompObj = objectEqualityCheck(obj, entryObject)
       }
-    )
+    ) 
     
     if(objectCompObj.value === 0){
       // entryObject is unique, add to database
@@ -102,7 +141,14 @@ const App = () => {
         .create(entryObject)
         .then(newObject => {
           setPersons(persons.concat(newObject))
+          setAlertMessage({message: `Added ${entryObject.name}`, type:'success'})
+          setTimeout(() => {
+            setAlertMessage({message: null, type: 'success'})
+          }, 5000)
         })
+        // .catch(error => {
+          
+        // })
     }
     else if(objectCompObj.value === 1){
       // new object has same name, but different number
@@ -111,6 +157,10 @@ const App = () => {
           .update(objectCompObj.id, entryObject)
           .then(returnedPerson => {
             setPersons(persons.map(person => person.id !== objectCompObj.id ? person : returnedPerson))
+            setAlertMessage({message: `Number changed for ${entryObject.name}`, type: 'success'})
+            setTimeout(() => {
+              setAlertMessage({message: null, type: 'success'})
+            }, 5000)
           })
       }
     }
@@ -124,6 +174,7 @@ const App = () => {
   return (
     <div>
       <h2>Phonebook</h2>
+      <Notification message={alertMessage.message} type={alertMessage.type}/>
       filter shown with <input value={filterName} onChange={handleFilterValue}/>
       <h2> Add new</h2>
       <form onSubmit={addName}>

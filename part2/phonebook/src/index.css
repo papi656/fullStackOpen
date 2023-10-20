@@ -1,0 +1,27 @@
+.notificationSuccess {
+    width: 400px;
+    color: rgb(0, 161, 0);
+    background-color: rgb(219, 219, 219);
+    border-radius: 2px;
+    border-color: green;
+    border-style: solid;
+    border-width: 4px;
+    font-size: 22px;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.notificationFailure {
+    width: 400px;
+    color: rgb(252, 33, 33);
+    background-color: rgb(219, 219, 219);
+    border-radius: 2px;
+    border-color: rgb(252, 33, 33);
+    border-style: solid;
+    border-width: 4px;
+    font-size: 22px;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 15px;
+}
