@@ -146,13 +146,19 @@ const App = () => {
             setAlertMessage({message: null, type: 'success'})
           }, 5000)
         })
-        // .catch(error => {
-          
-        // })
+        .catch(error => {
+          console.log(error)
+          console.log('Error - ',error.response.data.message)
+          setAlertMessage({message: `Entry validation failed. Name should be atleast of length 3, number of format XX_-XXXXXX_`, type:'failure'})
+          setTimeout(() => {
+            setAlertMessage({message: null, type: 'failure'})
+          }, 5000)
+        })
     }
     else if(objectCompObj.value === 1){
       // new object has same name, but different number
       if(window.confirm(`${entryObject.name} is already added to phonebook, replace the old number with new one?`)){
+        // entryObject.id = objectCompObj.id
         personService
           .update(objectCompObj.id, entryObject)
           .then(returnedPerson => {
